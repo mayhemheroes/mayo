@@ -1,14 +1,30 @@
 language: cpp
 
-dist: focal
+jobs:
+    include:
+        - os: linux
+          dist: focal
+          compiler: gcc
+
+        - os: osx
+          osx_image: xcode11.4  # -> macOS 10.15.4(see https://docs.travis-ci.com/user/reference/osx#macos-version)
 
 before_install:
-  - sudo apt-get -y install qtbase5-dev libqt5svg5-dev
-  - sudo apt-get -y install libocct-data-exchange-dev libocct-draw-dev
+    - |
+      case "${TRAVIS_OS_NAME}" in
+      "linux")
+          sudo apt-get -y install qtbase5-dev libqt5svg5-dev
+          sudo apt-get -y install libocct-data-exchange-dev libocct-draw-dev
+          ;;
 
-compiler:
-  - gcc
+      "osx")
+          brew install opencascade
+          brew list opencascade
+          brew install qt@5
+          brew link qt@5
+          ;;
+      esac
 
 script:
-  - chmod +x scripts/travis-build.sh
-  - ./scripts/travis-build.sh
+    - chmod +x scripts/travis-build.sh
+    - ./scripts/travis-build.sh
