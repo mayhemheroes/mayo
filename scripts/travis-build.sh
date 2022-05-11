@@ -21,7 +21,6 @@ if [ "${TRAVIS_OS_NAME}" == "linux" ]; then
 fi
 
 if [ "${TRAVIS_OS_NAME}" == "osx" ]; then
-    brew link --force qt@5
     # TODO Find opencascade version and use a variable
     qmake ../mayo.pro CASCADE_INC_DIR=/usr/local/Cellar/opencascade/7.6.2/include/opencascade CASCADE_LIB_DIR=/usr/local/Cellar/opencascade/7.6.2/lib
 fi
