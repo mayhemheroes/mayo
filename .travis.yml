@@ -19,7 +19,7 @@ before_install:
       "osx")
           brew install opencascade
           brew install qt@5
-          brew link --force qt@5
+          brew link qt@5 --force
           brew info opencascade
           ;;
       esac
