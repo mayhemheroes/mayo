@@ -63,5 +63,9 @@ jobs:
               echo CASCADE_INC_DIR=$GH_CASCADE_INC_DIR
               echo CASCADE_LIB_DIR=$GH_CASCADE_LIB_DIR
               echo CPU_CORE_COUNT=${{steps.cpu-cores.outputs.count}}
-              qmake ../source CASCADE_INC_DIR=$GH_CASCADE_INC_DIR CASCADE_LIB_DIR=$GH_CASCADE_LIB_DIR
+              qmake ../source  CASCADE_INC_DIR=$GH_CASCADE_INC_DIR  CASCADE_LIB_DIR=$GH_CASCADE_LIB_DIR  CONFIG+=withtests
               make -j${{steps.cpu-cores.outputs.count}}
+
+        - name: Execute Unit Tests
+          working-directory: ${{github.workspace}}/build
+          run: ./mayo --runtests
