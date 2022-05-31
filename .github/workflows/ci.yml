@@ -32,7 +32,7 @@ jobs:
               archives: 'qtbase qtsvg'
               cached: ${{ steps.cache-qt.outputs.cache-hit }}
 
-        - name: Install OpenCascade on Ubuntu
+        - name: Install OpenCascade[Ubuntu]
           if: startsWith(matrix.os, 'ubuntu')
           run: |
               sudo apt-get -y install libocct-data-exchange-dev libocct-draw-dev
@@ -41,7 +41,7 @@ jobs:
               echo "GH_CASCADE_INC_DIR=$GH_CASCADE_INC_DIR" >> $GITHUB_ENV
               echo "GH_CASCADE_LIB_DIR=$GH_CASCADE_LIB_DIR" >> $GITHUB_ENV
 
-        - name: Install OpenCascade on macOS
+        - name: Install OpenCascade[macOS]
           if: startsWith(matrix.os, 'macos')
           run: |
               brew install opencascade
@@ -66,10 +66,16 @@ jobs:
               qmake ../source  CASCADE_INC_DIR=$GH_CASCADE_INC_DIR  CASCADE_LIB_DIR=$GH_CASCADE_LIB_DIR  CONFIG+=withtests
               make -j${{steps.cpu-cores.outputs.count}}
 
-        - name: Execute Unit Tests
+        - name: Execute Unit Tests[Ubuntu]
+          if: startsWith(matrix.os, 'ubuntu')
           working-directory: ${{github.workspace}}/build
           env:
               QT_DEBUG_PLUGINS: 1
           run: |
-              ls -l
               ./mayo --runtests
+
+        - name: Execute Unit Tests[macOS]
+          working-directory: ${{github.workspace}}/build
+          run: |
+              ls -l
+              open -a '${{github.workspace}}/build/mayo.app' --args --runtests
