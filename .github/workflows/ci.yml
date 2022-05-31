@@ -34,7 +34,10 @@ jobs:
 
         - name: Install Additional Packages[Ubuntu]
           if: startsWith(matrix.os, 'ubuntu')
-          run: sudo apt-get install libxcb-xinerama0
+          run: |
+              sudo apt-get install libxcb-xinerama0
+              sudo apt-get install libxkbcommon0
+              sudo apt-get install libxkbcommon-x11-0
 
         - name: Install OpenCascade[Ubuntu]
           if: startsWith(matrix.os, 'ubuntu')
@@ -82,5 +85,4 @@ jobs:
           if: startsWith(matrix.os, 'macos')
           working-directory: ${{github.workspace}}/build
           run: |
-              ls -l mayo.app
-              open -a '${{github.workspace}}/build/mayo.app' --args --runtests
+              open -a mayo.app --args --runtests
