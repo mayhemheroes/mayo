@@ -32,6 +32,10 @@ jobs:
               archives: 'qtbase qtsvg'
               cached: ${{ steps.cache-qt.outputs.cache-hit }}
 
+        - name: Install Additional Packages[Ubuntu]
+          if: startsWith(matrix.os, 'ubuntu')
+          run: sudo apt-get install libxcb-xinerama0
+
         - name: Install OpenCascade[Ubuntu]
           if: startsWith(matrix.os, 'ubuntu')
           run: |
