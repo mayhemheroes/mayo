@@ -68,4 +68,7 @@ jobs:
 
         - name: Execute Unit Tests
           working-directory: ${{github.workspace}}/build
-          run: ./mayo --runtests
+          env: QT_DEBUG_PLUGINS: 1
+          run: |
+              ls -l
+              ./mayo --runtests
