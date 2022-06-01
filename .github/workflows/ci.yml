@@ -71,8 +71,11 @@ jobs:
         - name: Execute Unit Tests[Ubuntu]
           if: startsWith(matrix.os, 'ubuntu')
           working-directory: ${{github.workspace}}/build
+          env:
+              DISPLAY: :0
           run: |
               Xvfb $DISPLAY -screen 0 1280x1024x24 &
+              sleep 5s
               ./mayo --runtests
 
         - name: Execute Unit Tests[macOS]
