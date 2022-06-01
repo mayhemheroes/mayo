@@ -31,14 +31,6 @@ jobs:
           with:
               cached: ${{ steps.cache-qt.outputs.cache-hit }}
 
-        - name: Install Additional Packages[Ubuntu]
-          if: startsWith(matrix.os, 'ubuntu')
-          run: |
-              sudo apt-get install qt5-default
-              sudo apt-get install libxcb-xinerama0
-              sudo apt-get install libxkbcommon0
-              sudo apt-get install libxkbcommon-x11-0
-
         - name: Install OpenCascade[Ubuntu]
           if: startsWith(matrix.os, 'ubuntu')
           run: |
@@ -79,9 +71,8 @@ jobs:
         - name: Execute Unit Tests[Ubuntu]
           if: startsWith(matrix.os, 'ubuntu')
           working-directory: ${{github.workspace}}/build
-          env:
-              QT_DEBUG_PLUGINS: 1
           run: |
+              Xvfb $DISPLAY -screen 0 1280x1024x24 &
               ./mayo --runtests
 
         - name: Execute Unit Tests[macOS]
