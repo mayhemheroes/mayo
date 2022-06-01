@@ -67,8 +67,8 @@ jobs:
         - name: QMake
           working-directory: ${{github.workspace}}/build
           run: |
-              echo CASCADE_INC_DIR=$GH_CASCADE_INC_DIR
-              echo CASCADE_LIB_DIR=$GH_CASCADE_LIB_DIR
+              echo CASCADE_INC_DIR=${{env.GH_CASCADE_INC_DIR}}
+              echo CASCADE_LIB_DIR=${{env.GH_CASCADE_LIB_DIR}}
               qmake ../source  CASCADE_INC_DIR=${{env.GH_CASCADE_INC_DIR}}  CASCADE_LIB_DIR=${{env.GH_CASCADE_LIB_DIR}}  CONFIG+=withtests
 
         - name: Build
