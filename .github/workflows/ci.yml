@@ -29,12 +29,12 @@ jobs:
         - name: Install Qt
           uses: jurplel/install-qt-action@v2
           with:
-              archives: 'qtbase qtsvg'
               cached: ${{ steps.cache-qt.outputs.cache-hit }}
 
         - name: Install Additional Packages[Ubuntu]
           if: startsWith(matrix.os, 'ubuntu')
           run: |
+              sudo apt-get install qt5-default
               sudo apt-get install libxcb-xinerama0
               sudo apt-get install libxkbcommon0
               sudo apt-get install libxkbcommon-x11-0
@@ -64,13 +64,16 @@ jobs:
         - name: Create Build folder
           run: mkdir ${{github.workspace}}/build
 
-        - name: Build
+        - name: QMake
           working-directory: ${{github.workspace}}/build
           run: |
               echo CASCADE_INC_DIR=$GH_CASCADE_INC_DIR
               echo CASCADE_LIB_DIR=$GH_CASCADE_LIB_DIR
-              echo CPU_CORE_COUNT=${{steps.cpu-cores.outputs.count}}
-              qmake ../source  CASCADE_INC_DIR=$GH_CASCADE_INC_DIR  CASCADE_LIB_DIR=$GH_CASCADE_LIB_DIR  CONFIG+=withtests
+              qmake ../source  CASCADE_INC_DIR=${{env.GH_CASCADE_INC_DIR}}  CASCADE_LIB_DIR=${{env.GH_CASCADE_LIB_DIR}}  CONFIG+=withtests
+
+        - name: Build
+          working-directory: ${{github.workspace}}/build
+          run: |
               make -j${{steps.cpu-cores.outputs.count}}
 
         - name: Execute Unit Tests[Ubuntu]
@@ -85,4 +88,4 @@ jobs:
           if: startsWith(matrix.os, 'macos')
           working-directory: ${{github.workspace}}/build
           run: |
-              open -a mayo.app --args --runtests
+              ./mayo.app/Contents/MacOS/mayo --runtests
