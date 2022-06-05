@@ -1,0 +1,10 @@
+project: mayo
+target: mayo
+testsuite:
+  - file://tests/inputs/cube.step
+
+cmds:
+  - cmd: /repo/mayo-build/mayo /test.step -e out.stl
+    filepath: /test.step
+    env:
+      DISABLE_SMOKETEST: '1'
