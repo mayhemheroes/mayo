@@ -1,0 +1,175 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>Mayo::WidgetMeasure</class>
+ <widget class="QWidget" name="Mayo::WidgetMeasure">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>191</width>
+    <height>128</height>
+   </rect>
+  </property>
+  <property name="windowTitle">
+   <string>Form</string>
+  </property>
+  <layout class="QGridLayout" name="gridLayout">
+   <property name="leftMargin">
+    <number>4</number>
+   </property>
+   <property name="topMargin">
+    <number>4</number>
+   </property>
+   <property name="rightMargin">
+    <number>4</number>
+   </property>
+   <property name="bottomMargin">
+    <number>4</number>
+   </property>
+   <item row="0" column="0">
+    <widget class="QLabel" name="label_MeasureType">
+     <property name="text">
+      <string>Measure</string>
+     </property>
+    </widget>
+   </item>
+   <item row="0" column="1">
+    <widget class="QComboBox" name="combo_MeasureType">
+     <item>
+      <property name="text">
+       <string>Vertex Position</string>
+      </property>
+     </item>
+     <item>
+      <property name="text">
+       <string>Circle Center</string>
+      </property>
+     </item>
+     <item>
+      <property name="text">
+       <string>Circle Diameter</string>
+      </property>
+     </item>
+     <item>
+      <property name="text">
+       <string>Min Distance</string>
+      </property>
+     </item>
+     <item>
+      <property name="text">
+       <string>Length</string>
+      </property>
+     </item>
+     <item>
+      <property name="text">
+       <string>Angle</string>
+      </property>
+     </item>
+     <item>
+      <property name="text">
+       <string>Surface Area</string>
+      </property>
+     </item>
+    </widget>
+   </item>
+   <item row="1" column="0">
+    <widget class="QLabel" name="label_LengthUnit">
+     <property name="text">
+      <string>Length Unit</string>
+     </property>
+    </widget>
+   </item>
+   <item row="1" column="1">
+    <widget class="QComboBox" name="combo_LengthUnit">
+     <item>
+      <property name="text">
+       <string>Millimeter</string>
+      </property>
+     </item>
+     <item>
+      <property name="text">
+       <string>Centimeter</string>
+      </property>
+     </item>
+     <item>
+      <property name="text">
+       <string>Meter</string>
+      </property>
+     </item>
+     <item>
+      <property name="text">
+       <string>Inch</string>
+      </property>
+     </item>
+     <item>
+      <property name="text">
+       <string>Foot</string>
+      </property>
+     </item>
+     <item>
+      <property name="text">
+       <string>Yard</string>
+      </property>
+     </item>
+    </widget>
+   </item>
+   <item row="2" column="0">
+    <widget class="QLabel" name="label_AngleUnit">
+     <property name="text">
+      <string>Angle Unit</string>
+     </property>
+    </widget>
+   </item>
+   <item row="2" column="1">
+    <widget class="QComboBox" name="combo_AngleUnit">
+     <item>
+      <property name="text">
+       <string>Degree</string>
+      </property>
+     </item>
+     <item>
+      <property name="text">
+       <string>Radian</string>
+      </property>
+     </item>
+    </widget>
+   </item>
+   <item row="3" column="0" colspan="2">
+    <widget class="QStackedWidget" name="stackedWidget">
+     <widget class="QWidget" name="pageMessage">
+      <layout class="QHBoxLayout" name="horizontalLayout">
+       <property name="leftMargin">
+        <number>0</number>
+       </property>
+       <property name="topMargin">
+        <number>0</number>
+       </property>
+       <property name="rightMargin">
+        <number>0</number>
+       </property>
+       <property name="bottomMargin">
+        <number>0</number>
+       </property>
+       <item>
+        <widget class="QLabel" name="label_Message">
+         <property name="frameShape">
+          <enum>QFrame::StyledPanel</enum>
+         </property>
+         <property name="text">
+          <string>Select entities to measure</string>
+         </property>
+         <property name="margin">
+          <number>4</number>
+         </property>
+        </widget>
+       </item>
+      </layout>
+     </widget>
+     <widget class="QWidget" name="pageResult"/>
+    </widget>
+   </item>
+  </layout>
+ </widget>
+ <resources/>
+ <connections/>
+</ui>

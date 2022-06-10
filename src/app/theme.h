@@ -56,6 +56,7 @@ public:
         ZoomIn,
         ZoomOut,
         ClipPlane,
+        Measure,
         View3dIso,
         View3dLeft,
         View3dRight,
