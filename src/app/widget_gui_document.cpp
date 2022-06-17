@@ -215,6 +215,9 @@ void WidgetGuiDocument::toggleWidgetMeasure(bool on)
         );
     }
 
+    if (m_widgetMeasure)
+        m_widgetMeasure->setMeasureOn(on);
+
     this->updageWidgetPanelControls(m_widgetMeasure, m_btnMeasure);
 }
 
