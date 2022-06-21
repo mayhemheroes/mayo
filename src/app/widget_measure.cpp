@@ -16,6 +16,7 @@
 #include "../graphics/graphics_mesh_object_driver.h"
 #include "../graphics/graphics_shape_object_driver.h"
 
+#include <AIS_Point.hxx>
 #include <AIS_Shape.hxx>
 #include <AIS_TextLabel.hxx>
 #include <PrsDim_DiameterDimension.hxx>
@@ -24,6 +25,7 @@
 #include <BRepGProp.hxx>
 #include <BRep_Tool.hxx>
 #include <gp_Circ.hxx>
+#include <Geom_CartesianPoint.hxx>
 #include <GCPnts_AbscissaPoint.hxx>
 #include <GProp_GProps.hxx>
 #include <StdSelect_BRepOwner.hxx>
@@ -201,6 +203,23 @@ void WidgetMeasure::onGraphicsSelectionChanged()
         }
         break;
     }
+    case MeasureType::CircleCenter: {
+        for (const GraphicsOwnerPtr& owner : vecNewSelected) {
+            const IMeasureTool::Result<gp_Circ> circle = m_tool->circle(owner);
+            if (circle.isValid) {
+                const QString pntText = QStringUtils::text(circle.value.Location(), AppModule::get()->defaultTextOptions());
+                auto gfxText = new AIS_TextLabel;
+                gfxText->SetText(to_OccExtString("  " + pntText));
+                gfxText->SetPosition(circle.value.Location());
+                auto gfxPos = new AIS_Point(new Geom_CartesianPoint(circle.value.Location()));
+                gfxText->SetZLayer(Graphic3d_ZLayerId_Topmost);
+                gfxPos->SetZLayer(Graphic3d_ZLayerId_Topmost);
+                m_guiDoc->graphicsScene()->addObject(gfxText);
+                m_guiDoc->graphicsScene()->addObject(gfxPos);
+            }
+        }
+        break;
+    }
     case MeasureType::CircleDiameter: {
         for (const GraphicsOwnerPtr& owner : vecNewSelected) {
             const IMeasureTool::Result<gp_Circ> circle = m_tool->circle(owner);
@@ -208,7 +227,15 @@ void WidgetMeasure::onGraphicsSelectionChanged()
                 const QuantityLength diameter = 2 * circle.value.Radius() * Quantity_Millimeter;
                 const auto trDiameter = UnitSystem::millimeters(diameter);
                 auto gfxDiameter = new PrsDim_DiameterDimension(circle.value);
+                gfxDiameter->SetZLayer(Graphic3d_ZLayerId_Topmost);
+                gfxDiameter->DimensionAspect()->ArrowAspect()->SetZoomable(false);
+                gfxDiameter->DimensionAspect()->ArrowAspect()->SetLength(0.5);
+                gfxDiameter->DimensionAspect()->MakeUnitsDisplayed(true);
+                gfxDiameter->SetModelUnits("mm");
+                gfxDiameter->SetDisplayUnits("cm");
                 m_guiDoc->graphicsScene()->addObject(gfxDiameter);
+                m_ui->stackedWidget->setCurrentWidget(m_ui->pageResult);
+                m_ui->label_Result->setText(tr("Diameter: %1%2").arg(trDiameter.value).arg(trDiameter.strUnit));
             }
             else {
                 qWarning() << to_QString(circle.errorMessage);

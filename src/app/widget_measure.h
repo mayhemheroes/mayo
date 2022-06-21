@@ -73,6 +73,14 @@ public:
     Result<QuantityArea> surfaceArea(Span<const GraphicsOwnerPtr> spanOwner) const override;
 };
 
+class IMeasure {
+public:
+    enum class Unit { Millimeter, Centimeter, Meter, Inch, Foot, Yard };
+    virtual std::string text() const = 0;
+    virtual void update(Unit unit) = 0;
+    virtual Span<const GraphicsObjectPtr> graphicsObjects() const = 0;
+};
+
 class WidgetMeasure : public QWidget {
     Q_OBJECT
 public:
@@ -92,6 +100,24 @@ private:
     MeasureType currentMeasureType() const;
 
     void onGraphicsSelectionChanged();
+
+#if 0
+    struct MeasureVertexPosition : public IMeasure {
+        gp_Pnt pnt;
+        Handle(AIS_TextLabel) gfxText;
+        std::string text() const override;
+        void update(Unit unit) override;
+        Span<const GraphicsObjectPtr> graphicsObjects() override;
+    };
+    struct MeasureCircleCenter : public IMeasure {
+        gp_Circ circle;
+        Handle(AIS_Point) gfxPoint;
+        Handle(AIS_TextLabel) gfxText;
+        std::string text() const override;
+        void update(Unit unit) override;
+        Span<const GraphicsObjectPtr> graphicsObjects() override;
+    };
+#endif
 
     class Ui_WidgetMeasure* m_ui= nullptr;
     GuiDocument* m_guiDoc = nullptr;
