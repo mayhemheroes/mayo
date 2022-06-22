@@ -127,6 +127,28 @@ MeasureType WidgetMeasure::toMeasureType(int comboBoxId)
     return MeasureType::None;
 }
 
+std::string_view WidgetMeasure::toMeasureLengthUnit(int comboBoxId)
+{
+    switch (comboBoxId) {
+    case 0: return "mm";
+    case 1: return "cm";
+    case 2: return "m";
+    case 3: return "in";
+    case 4: return "foot"; // TODO Fix unit_system.cpp
+    case 5: return "yd"; // TODO Fix unit_system.cpp
+    }
+    return {};
+}
+
+std::string_view WidgetMeasure::toMeasureAngleUnit(int comboBoxId)
+{
+    switch (comboBoxId) {
+    case 0: return "deg";
+    case 1: return "rad";
+    }
+    return {};
+}
+
 void WidgetMeasure::onMeasureTypeChanged(int id)
 {
     const MeasureType measureType = WidgetMeasure::toMeasureType(id);
@@ -164,6 +186,89 @@ MeasureType WidgetMeasure::currentMeasureType() const
     return WidgetMeasure::toMeasureType(m_ui->combo_MeasureType->currentIndex());
 }
 
+MeasureConfig WidgetMeasure::currentMeasureConfig() const
+{
+    return {
+        WidgetMeasure::toMeasureLengthUnit(m_ui->combo_LengthUnit->currentIndex()),
+        WidgetMeasure::toMeasureAngleUnit(m_ui->combo_AngleUnit->currentIndex())
+    };
+}
+
+class MeasureVertexPosition : public IMeasure {
+public:
+    MeasureVertexPosition(const gp_Pnt& pnt)
+        : m_pnt(pnt),
+          m_gfxPntText(new AIS_TextLabel)
+    {
+        m_gfxPntText->SetPosition(pnt);
+        m_gfxPntText->SetZLayer(Graphic3d_ZLayerId_Topmost);
+    }
+
+    void update(const MeasureConfig& config) override {
+        m_strPnt = MeasureVertexPosition::text(m_pnt, config);
+        m_gfxPntText->SetText(to_OccExtString(m_strPnt));
+    }
+
+    std::string text() const override { return m_strPnt; }
+
+    int graphicsObjectsCount() const override { return 1; }
+    GraphicsObjectPtr graphicsObjectAt(int i) const override { return i == 0 ? m_gfxPntText : GraphicsObjectPtr{}; }
+
+    static std::string text(const gp_Pnt& pnt, const MeasureConfig& config) {
+        const QStringUtils::TextOptions textOpts = AppModule::get()->defaultTextOptions();
+        const QString pntText =
+                QString("(%1 %2 %3)%4").arg(
+                    QStringUtils::text(pnt.X(), textOpts),
+                    QStringUtils::text(pnt.Y(), textOpts),
+                    QStringUtils::text(pnt.Z(), textOpts),
+                    to_QString(config.strLengthUnit)
+                );
+        return to_stdString(pntText);
+    }
+
+private:
+    gp_Pnt m_pnt;
+    std::string m_strPnt;
+    Handle_AIS_TextLabel m_gfxPntText;
+};
+
+class MeasureCircleCenter : public IMeasure {
+public:
+    MeasureCircleCenter(const gp_Circ& circle)
+        : m_circle(circle),
+          m_gfxText(new AIS_TextLabel),
+          m_gfxPoint(new AIS_Point(new Geom_CartesianPoint(circle.Location())))
+    {
+        m_gfxText->SetPosition(circle.Location());
+        m_gfxText->SetZLayer(Graphic3d_ZLayerId_Topmost);
+        m_gfxPoint->SetZLayer(Graphic3d_ZLayerId_Topmost);
+    }
+
+    void update(const MeasureConfig& config) override
+    {
+        const std::string pntText = MeasureVertexPosition::text(m_circle.Location(), config);
+        m_gfxText->SetText(to_OccExtString("  " + pntText));
+    }
+
+    std::string text() const override { return {}; }
+
+    int graphicsObjectsCount() const override { return 2; }
+    GraphicsObjectPtr graphicsObjectAt(int i) const override {
+        if (i == 0)
+            return m_gfxPoint;
+        else if (i == 1)
+            return m_gfxText;
+        else
+            return GraphicsObjectPtr{};
+    }
+
+private:
+    gp_Circ m_circle;
+    Handle_AIS_Point m_gfxPoint;
+    Handle_AIS_TextLabel m_gfxText;
+
+};
+
 void WidgetMeasure::onGraphicsSelectionChanged()
 {
     std::vector<GraphicsOwnerPtr> vecSelected;
@@ -189,34 +294,21 @@ void WidgetMeasure::onGraphicsSelectionChanged()
     if (!m_tool)
         return;
 
+    IMeasure* measure = nullptr;
     switch (this->currentMeasureType()) {
     case MeasureType::VertexPosition: {
         for (const GraphicsOwnerPtr& owner : vecNewSelected) {
             const IMeasureTool::Result<gp_Pnt> pnt = m_tool->vertexPosition(owner);
-            if (pnt.isValid) {
-                const QString pntText = QStringUtils::text(pnt.value, AppModule::get()->defaultTextOptions());
-                auto gfxText = new AIS_TextLabel;
-                gfxText->SetText(to_OccExtString(pntText));
-                gfxText->SetPosition(pnt.value);
-                m_guiDoc->graphicsScene()->addObject(gfxText);
-            }
+            if (pnt.isValid)
+                measure = new MeasureVertexPosition(pnt.value);
         }
         break;
     }
     case MeasureType::CircleCenter: {
         for (const GraphicsOwnerPtr& owner : vecNewSelected) {
             const IMeasureTool::Result<gp_Circ> circle = m_tool->circle(owner);
-            if (circle.isValid) {
-                const QString pntText = QStringUtils::text(circle.value.Location(), AppModule::get()->defaultTextOptions());
-                auto gfxText = new AIS_TextLabel;
-                gfxText->SetText(to_OccExtString("  " + pntText));
-                gfxText->SetPosition(circle.value.Location());
-                auto gfxPos = new AIS_Point(new Geom_CartesianPoint(circle.value.Location()));
-                gfxText->SetZLayer(Graphic3d_ZLayerId_Topmost);
-                gfxPos->SetZLayer(Graphic3d_ZLayerId_Topmost);
-                m_guiDoc->graphicsScene()->addObject(gfxText);
-                m_guiDoc->graphicsScene()->addObject(gfxPos);
-            }
+            if (circle.isValid)
+                measure = new MeasureCircleCenter(circle.value);
         }
         break;
     }
@@ -245,6 +337,11 @@ void WidgetMeasure::onGraphicsSelectionChanged()
     }
     } // endswitch
 
+    if (measure) {
+        measure->update(this->currentMeasureConfig());
+        for (int i = 0; i < measure->graphicsObjectsCount(); ++i)
+            m_guiDoc->graphicsScene()->addObject(measure->graphicsObjectAt(i));
+    }
 }
 
 Span<const GraphicsObjectSelectionMode> MeasureShapeTool::selectionModes(MeasureType type) const

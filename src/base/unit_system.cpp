@@ -272,6 +272,31 @@ UnitSystem::TranslateResult UnitSystem::parseQuantity(std::string_view strQuanti
     return {};
 }
 
+UnitSystem::TranslateResult UnitSystem::translateLength(QuantityLength length, std::string_view strUnit)
+{
+    for (const Internal::UnitInfo& unitInfo : Internal::arrayUnitInfo_SI) {
+        if (unitInfo.unit == Unit::Length && strUnit == unitInfo.str)
+            return { length.value(), unitInfo.str, unitInfo.factor };
+    }
+
+    for (const Internal::UnitInfo& unitInfo : Internal::arrayUnitInfo_ImperialUK) {
+        if (unitInfo.unit == Unit::Length && strUnit == unitInfo.str)
+            return { length.value(), unitInfo.str, unitInfo.factor };
+    }
+
+    return {};
+}
+
+UnitSystem::TranslateResult UnitSystem::translateAngle(QuantityAngle angle, std::string_view strUnit)
+{
+    if (strUnit == "deg" || strUnit == "°")
+        return UnitSystem::degrees(angle);
+    else if (strUnit == "rad")
+        return UnitSystem::radians(angle);
+
+    return {};
+}
+
 UnitSystem::TranslateResult UnitSystem::radians(QuantityAngle angle)
 {
     return { angle.value(), "rad", 1. };

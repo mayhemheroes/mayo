@@ -23,6 +23,7 @@ public:
         const char* strUnit; // UTF8
         double factor;
         constexpr operator double() const { return this->value; }
+        constexpr operator bool() const { return this->strUnit != nullptr; }
     };
 
     template<Unit UNIT>
@@ -31,6 +32,9 @@ public:
     }
     static TranslateResult translate(Schema schema, double value, Unit unit);
     static TranslateResult parseQuantity(std::string_view strQuantity, Unit* ptrUnit = nullptr);
+
+    static TranslateResult translateLength(QuantityLength length, std::string_view strUnit);
+    static TranslateResult translateAngle(QuantityAngle angle, std::string_view strUnit);
 
     static TranslateResult radians(QuantityAngle angle);
     static TranslateResult degrees(QuantityAngle angle);

@@ -29,6 +29,11 @@ enum class MeasureType {
     None, VertexPosition, CircleCenter, CircleDiameter, MinDistance, Length, Angle, SurfaceArea
 };
 
+struct MeasureConfig {
+    std::string_view strLengthUnit = "mm";
+    std::string_view strAngleUnit = "deg";
+};
+
 class IMeasureTool {
 public:
     virtual Span<const GraphicsObjectSelectionMode> selectionModes(MeasureType type) const = 0;
@@ -75,10 +80,10 @@ public:
 
 class IMeasure {
 public:
-    enum class Unit { Millimeter, Centimeter, Meter, Inch, Foot, Yard };
+    virtual void update(const MeasureConfig& config) = 0;
     virtual std::string text() const = 0;
-    virtual void update(Unit unit) = 0;
-    virtual Span<const GraphicsObjectPtr> graphicsObjects() const = 0;
+    virtual int graphicsObjectsCount() const = 0;
+    virtual GraphicsObjectPtr graphicsObjectAt(int i) const = 0;
 };
 
 class WidgetMeasure : public QWidget {
@@ -95,29 +100,16 @@ signals:
     void sizeAdjustmentRequested();
 
 private:
-    static MeasureType toMeasureType(int comboBoxId);
     void onMeasureTypeChanged(int id);
+
+    static MeasureType toMeasureType(int comboBoxId);
+    static std::string_view toMeasureLengthUnit(int comboBoxId);
+    static std::string_view toMeasureAngleUnit(int comboBoxId);
+
     MeasureType currentMeasureType() const;
+    MeasureConfig currentMeasureConfig() const;
 
     void onGraphicsSelectionChanged();
-
-#if 0
-    struct MeasureVertexPosition : public IMeasure {
-        gp_Pnt pnt;
-        Handle(AIS_TextLabel) gfxText;
-        std::string text() const override;
-        void update(Unit unit) override;
-        Span<const GraphicsObjectPtr> graphicsObjects() override;
-    };
-    struct MeasureCircleCenter : public IMeasure {
-        gp_Circ circle;
-        Handle(AIS_Point) gfxPoint;
-        Handle(AIS_TextLabel) gfxText;
-        std::string text() const override;
-        void update(Unit unit) override;
-        Span<const GraphicsObjectPtr> graphicsObjects() override;
-    };
-#endif
 
     class Ui_WidgetMeasure* m_ui= nullptr;
     GuiDocument* m_guiDoc = nullptr;
