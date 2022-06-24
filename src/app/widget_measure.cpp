@@ -5,31 +5,14 @@
 ****************************************************************************/
 
 #include "widget_measure.h"
-#include "app_module.h"
+#include "measure_display.h"
+#include "measure_shape_tool.h"
 #include "qstring_conv.h"
-#include "qstring_utils.h"
 #include "theme.h"
 #include "ui_widget_measure.h"
 
 #include "../base/unit_system.h"
 #include "../gui/gui_document.h"
-#include "../graphics/graphics_mesh_object_driver.h"
-#include "../graphics/graphics_shape_object_driver.h"
-
-#include <AIS_Point.hxx>
-#include <AIS_Shape.hxx>
-#include <AIS_TextLabel.hxx>
-#include <PrsDim_DiameterDimension.hxx>
-#include <BRepAdaptor_Curve.hxx>
-#include <BRepExtrema_DistShapeShape.hxx>
-#include <BRepGProp.hxx>
-#include <BRep_Tool.hxx>
-#include <gp_Circ.hxx>
-#include <Geom_CartesianPoint.hxx>
-#include <GCPnts_AbscissaPoint.hxx>
-#include <GProp_GProps.hxx>
-#include <StdSelect_BRepOwner.hxx>
-#include <TopoDS.hxx>
 
 #include <QtCore/QtDebug>
 
@@ -194,121 +177,67 @@ MeasureConfig WidgetMeasure::currentMeasureConfig() const
     };
 }
 
-class MeasureVertexPosition : public IMeasure {
-public:
-    MeasureVertexPosition(const gp_Pnt& pnt)
-        : m_pnt(pnt),
-          m_gfxPntText(new AIS_TextLabel)
-    {
-        m_gfxPntText->SetPosition(pnt);
-        m_gfxPntText->SetZLayer(Graphic3d_ZLayerId_Topmost);
-    }
-
-    void update(const MeasureConfig& config) override {
-        m_strPnt = MeasureVertexPosition::text(m_pnt, config);
-        m_gfxPntText->SetText(to_OccExtString(m_strPnt));
-    }
-
-    std::string text() const override { return m_strPnt; }
-
-    int graphicsObjectsCount() const override { return 1; }
-    GraphicsObjectPtr graphicsObjectAt(int i) const override { return i == 0 ? m_gfxPntText : GraphicsObjectPtr{}; }
-
-    static std::string text(const gp_Pnt& pnt, const MeasureConfig& config) {
-        const QStringUtils::TextOptions textOpts = AppModule::get()->defaultTextOptions();
-        const QString pntText =
-                QString("(%1 %2 %3)%4").arg(
-                    QStringUtils::text(pnt.X(), textOpts),
-                    QStringUtils::text(pnt.Y(), textOpts),
-                    QStringUtils::text(pnt.Z(), textOpts),
-                    to_QString(config.strLengthUnit)
-                );
-        return to_stdString(pntText);
-    }
-
-private:
-    gp_Pnt m_pnt;
-    std::string m_strPnt;
-    Handle_AIS_TextLabel m_gfxPntText;
-};
-
-class MeasureCircleCenter : public IMeasure {
-public:
-    MeasureCircleCenter(const gp_Circ& circle)
-        : m_circle(circle),
-          m_gfxText(new AIS_TextLabel),
-          m_gfxPoint(new AIS_Point(new Geom_CartesianPoint(circle.Location())))
-    {
-        m_gfxText->SetPosition(circle.Location());
-        m_gfxText->SetZLayer(Graphic3d_ZLayerId_Topmost);
-        m_gfxPoint->SetZLayer(Graphic3d_ZLayerId_Topmost);
-    }
-
-    void update(const MeasureConfig& config) override
-    {
-        const std::string pntText = MeasureVertexPosition::text(m_circle.Location(), config);
-        m_gfxText->SetText(to_OccExtString("  " + pntText));
-    }
-
-    std::string text() const override { return {}; }
-
-    int graphicsObjectsCount() const override { return 2; }
-    GraphicsObjectPtr graphicsObjectAt(int i) const override {
-        if (i == 0)
-            return m_gfxPoint;
-        else if (i == 1)
-            return m_gfxText;
-        else
-            return GraphicsObjectPtr{};
-    }
-
-private:
-    gp_Circ m_circle;
-    Handle_AIS_Point m_gfxPoint;
-    Handle_AIS_TextLabel m_gfxText;
-
-};
-
 void WidgetMeasure::onGraphicsSelectionChanged()
 {
-    std::vector<GraphicsOwnerPtr> vecSelected;
-    m_guiDoc->graphicsScene()->foreachSelectedOwner([&](const GraphicsOwnerPtr& owner) {
-        vecSelected.push_back(owner);
-    });
-
+    auto gfxScene = m_guiDoc->graphicsScene();
     std::vector<GraphicsOwnerPtr> vecNewSelected;
-    for (const GraphicsOwnerPtr& owner : vecSelected) {
-        auto itFound = std::find(m_vecSelectedOwner.begin(), m_vecSelectedOwner.end(), owner);
-        if (itFound == m_vecSelectedOwner.end())
-            vecNewSelected.push_back(owner);
-    }
-
     std::vector<GraphicsOwnerPtr> vecDeselected;
-    for (const GraphicsOwnerPtr& owner : m_vecSelectedOwner) {
-        auto itFound = std::find(vecSelected.begin(), vecSelected.end(), owner);
-        if (itFound == vecSelected.end())
-            vecDeselected.push_back(owner);
+    {
+        std::vector<GraphicsOwnerPtr> vecSelected;
+        gfxScene->foreachSelectedOwner([&](const GraphicsOwnerPtr& owner) {
+            vecSelected.push_back(owner);
+        });
+
+        for (const GraphicsOwnerPtr& owner : vecSelected) {
+            auto itFound = std::find(m_vecSelectedOwner.begin(), m_vecSelectedOwner.end(), owner);
+            if (itFound == m_vecSelectedOwner.end())
+                vecNewSelected.push_back(owner);
+        }
+
+        for (const GraphicsOwnerPtr& owner : m_vecSelectedOwner) {
+            auto itFound = std::find(vecSelected.begin(), vecSelected.end(), owner);
+            if (itFound == vecSelected.end())
+                vecDeselected.push_back(owner);
+        }
+
+        m_vecSelectedOwner = std::move(vecSelected);
     }
 
-    m_vecSelectedOwner = std::move(vecSelected);
     if (!m_tool)
         return;
 
-    IMeasure* measure = nullptr;
+    for (const GraphicsOwnerPtr& owner : vecDeselected) {
+        for (auto link = this->findLink(owner); link != nullptr; link = this->findLink(owner)) {
+            auto itMeasure = std::find_if(
+                        m_vecMeasure.begin(), m_vecMeasure.end(),
+                        [=](const IMeasureDisplayPtr& measure) { return measure.get() == link->measure; }
+            );
+            if (itMeasure != m_vecMeasure.end())
+                m_vecMeasure.erase(itMeasure);
+
+            this->eraseLink(link);
+        }
+    }
+
+    std::vector<IMeasureDisplayPtr> vecNewMeasure;
     switch (this->currentMeasureType()) {
     case MeasureType::VertexPosition: {
         for (const GraphicsOwnerPtr& owner : vecNewSelected) {
             const IMeasureTool::Result<gp_Pnt> pnt = m_tool->vertexPosition(owner);
-            if (pnt.isValid)
-                measure = new MeasureVertexPosition(pnt.value);
+            if (pnt.isValid) {
+                vecNewMeasure.push_back(std::make_unique<MeasureDisplayVertex>(pnt.value));
+                this->addLink(owner, vecNewMeasure.back());
+            }
         }
         break;
     }
     case MeasureType::CircleCenter: {
         for (const GraphicsOwnerPtr& owner : vecNewSelected) {
             const IMeasureTool::Result<gp_Circ> circle = m_tool->circle(owner);
-            if (circle.isValid)
-                measure = new MeasureCircleCenter(circle.value);
+            if (circle.isValid) {
+                vecNewMeasure.push_back(std::make_unique<MeasureDisplayCircleCenter>(circle.value));
+                this->addLink(owner, vecNewMeasure.back());
+            }
         }
         break;
     }
@@ -316,196 +245,71 @@ void WidgetMeasure::onGraphicsSelectionChanged()
         for (const GraphicsOwnerPtr& owner : vecNewSelected) {
             const IMeasureTool::Result<gp_Circ> circle = m_tool->circle(owner);
             if (circle.isValid) {
-                const QuantityLength diameter = 2 * circle.value.Radius() * Quantity_Millimeter;
-                const auto trDiameter = UnitSystem::millimeters(diameter);
-                auto gfxDiameter = new PrsDim_DiameterDimension(circle.value);
-                gfxDiameter->SetZLayer(Graphic3d_ZLayerId_Topmost);
-                gfxDiameter->DimensionAspect()->ArrowAspect()->SetZoomable(false);
-                gfxDiameter->DimensionAspect()->ArrowAspect()->SetLength(0.5);
-                gfxDiameter->DimensionAspect()->MakeUnitsDisplayed(true);
-                gfxDiameter->SetModelUnits("mm");
-                gfxDiameter->SetDisplayUnits("cm");
-                m_guiDoc->graphicsScene()->addObject(gfxDiameter);
-                m_ui->stackedWidget->setCurrentWidget(m_ui->pageResult);
-                m_ui->label_Result->setText(tr("Diameter: %1%2").arg(trDiameter.value).arg(trDiameter.strUnit));
+                vecNewMeasure.push_back(std::make_unique<MeasureDisplayCircleDiameter>(circle.value));
+                this->addLink(owner, vecNewMeasure.back());
             }
-            else {
-                qWarning() << to_QString(circle.errorMessage);
+        }
+        break;
+    }
+    case MeasureType::MinDistance: {
+        if (m_vecSelectedOwner.size() == 2) {
+            const auto minDist = m_tool->minDistance(m_vecSelectedOwner.front(), m_vecSelectedOwner.back());
+            if (minDist.isValid) {
+                vecNewMeasure.push_back(std::make_unique<MeasureDisplayMinDistance>(minDist.value));
+                this->addLink(m_vecSelectedOwner.front(), vecNewMeasure.back());
+                this->addLink(m_vecSelectedOwner.back(), vecNewMeasure.back());
             }
         }
         break;
     }
     } // endswitch
 
-    if (measure) {
+    for (IMeasureDisplayPtr& measure : vecNewMeasure) {
         measure->update(this->currentMeasureConfig());
-        for (int i = 0; i < measure->graphicsObjectsCount(); ++i)
-            m_guiDoc->graphicsScene()->addObject(measure->graphicsObjectAt(i));
-    }
-}
+        for (int i = 0; i < measure->graphicsObjectsCount(); ++i) {
+            const GraphicsObjectPtr gfxObject = measure->graphicsObjectAt(i);
+            gfxObject->SetZLayer(Graphic3d_ZLayerId_Topmost);
+            gfxScene->addObject(gfxObject);
+        }
 
-Span<const GraphicsObjectSelectionMode> MeasureShapeTool::selectionModes(MeasureType type) const
-{
-    switch (type) {
-    case MeasureType::VertexPosition: {
-        static const GraphicsObjectSelectionMode modes[] = { AIS_Shape::SelectionMode(TopAbs_VERTEX) };
-        return modes;
-    }
-    case MeasureType::CircleCenter:
-    case MeasureType::CircleDiameter:
-    case MeasureType::Length:
-    case MeasureType::Angle: {
-        static const GraphicsObjectSelectionMode modes[] = { AIS_Shape::SelectionMode(TopAbs_EDGE) };
-        return modes;
-    }
-    case MeasureType::MinDistance: {
-        static const GraphicsObjectSelectionMode modes[] = {
-            AIS_Shape::SelectionMode(TopAbs_VERTEX),
-            AIS_Shape::SelectionMode(TopAbs_EDGE),
-            AIS_Shape::SelectionMode(TopAbs_FACE)
-        };
-        return modes;
-    }
-    case MeasureType::SurfaceArea: {
-        static const GraphicsObjectSelectionMode modes[] = { AIS_Shape::SelectionMode(TopAbs_FACE) };
-        return modes;
-    }
-    } // endswitch
-
-    return {};
-}
-
-bool MeasureShapeTool::supports(const GraphicsObjectPtr& object) const
-{
-    auto gfxDriver = GraphicsObjectDriver::get(object);
-    return gfxDriver ? !GraphicsShapeObjectDriverPtr::DownCast(gfxDriver).IsNull() : false;
-}
-
-bool MeasureShapeTool::supports(MeasureType type) const
-{
-    return type != MeasureType::None;
-}
-
-namespace {
-
-const TopoDS_Shape& getShape(const GraphicsOwnerPtr& owner)
-{
-    static const TopoDS_Shape nullShape;
-    auto brepOwner = Handle_StdSelect_BRepOwner::DownCast(owner);
-    return brepOwner ? brepOwner->Shape() : nullShape;
-}
-
-struct MeasureShapeToolI18N { MAYO_DECLARE_TEXT_ID_FUNCTIONS(Mayo::MeasureShapeTool) };
-
-} // namespace
-
-IMeasureTool::Result<gp_Pnt> MeasureShapeTool::vertexPosition(const GraphicsOwnerPtr& owner) const
-{
-    const TopoDS_Shape& shape = getShape(owner);
-    if (shape.IsNull() || shape.ShapeType() != TopAbs_VERTEX)
-        return {};
-
-    return BRep_Tool::Pnt(TopoDS::Vertex(shape)).Transformed(owner->Location());
-}
-
-IMeasureTool::Result<gp_Circ> MeasureShapeTool::circle(const GraphicsOwnerPtr& owner) const
-{
-    const TopoDS_Shape& shape = getShape(owner);
-    if (shape.IsNull() || shape.ShapeType() != TopAbs_EDGE)
-        return MeasureShapeToolI18N::textIdTr("Picked entity must be a circular edge");
-
-    const BRepAdaptor_Curve curve(TopoDS::Edge(shape));
-    if (curve.GetType() == GeomAbs_Circle) {
-        return curve.Circle().Transformed(owner->Location());
-    }
-    else if (curve.GetType() == GeomAbs_Ellipse) {
-        const gp_Elips ellipse  = curve.Ellipse();
-        if (std::abs(ellipse.MinorRadius() - ellipse.MajorRadius()) < Precision::Confusion())
-            return gp_Circ(ellipse.Position(), ellipse.MinorRadius()).Transformed(owner->Location());
-    }
-    else if (curve.GetType() == GeomAbs_BSplineCurve) {
-        // TODO Support this case
-        // See https://stackoverflow.com/questions/35310195/extract-arc-circle-definition-from-bspline
+        m_vecMeasure.push_back(std::move(measure));
     }
 
-    return MeasureShapeToolI18N::textIdTr("Picked entity must be a circular edge");
-}
+    m_ui->stackedWidget->setCurrentWidget(m_ui->pageResult);
+    QString strResult;
+    for (const IMeasureDisplayPtr& measure : m_vecMeasure) {
+        const std::string strMeasure = measure->text();
+        if (!strMeasure.empty()) {
+            if (!strResult.isEmpty())
+                strResult += "\n";
 
-IMeasureTool::Result<IMeasureTool::MinDistance> MeasureShapeTool::minDistance(
-        const GraphicsOwnerPtr& owner1, const GraphicsOwnerPtr& owner2) const
-{
-    const TopoDS_Shape& shape1 = getShape(owner1);
-    if (shape1.IsNull())
-        return MeasureShapeToolI18N::textIdTr("First picked entity must be a shape(BREP)");
-
-    const TopoDS_Shape& shape2 = getShape(owner2);
-    if (shape2.IsNull())
-        return MeasureShapeToolI18N::textIdTr("Second picked entity must be a shape(BREP)");
-
-    const BRepExtrema_DistShapeShape dist(shape1, shape2);
-    if (!dist.IsDone())
-        return MeasureShapeToolI18N::textIdTr("Computation of minimum distance failed");
-
-    IMeasureTool::MinDistance distResult;
-    distResult.pnt1 = dist.PointOnShape1(1);
-    distResult.pnt2 = dist.PointOnShape2(1);
-    distResult.distance = dist.Value() * Quantity_Millimeter;
-    return distResult;
-}
-
-IMeasureTool::Result<QuantityLength> MeasureShapeTool::length(Span<const GraphicsOwnerPtr> spanOwner) const
-{
-    double len = 0;
-    // TODO Parallelize this for-loop. Verify GCPnts_AbscissaPoint::Length() is thread-safe
-    for (const GraphicsOwnerPtr& owner : spanOwner) {
-        const TopoDS_Shape& shape = getShape(owner);
-        if (shape.IsNull() || shape.ShapeType() != TopAbs_EDGE)
-            return MeasureShapeToolI18N::textIdTr("All picked entities must be edges");
-
-        const BRepAdaptor_Curve curve(TopoDS::Edge(shape));
-        len += GCPnts_AbscissaPoint::Length(curve, 1e-6);
+            strResult += to_QString(strMeasure);
+        }
     }
 
-    return len * Quantity_Millimeter;
+    m_ui->label_Result->setText(strResult);
+    emit this->sizeAdjustmentRequested();
 }
 
-IMeasureTool::Result<QuantityAngle> MeasureShapeTool::angle(
-        const GraphicsOwnerPtr& owner1, const GraphicsOwnerPtr& owner2) const
+void WidgetMeasure::addLink(const GraphicsOwnerPtr& owner, const IMeasureDisplayPtr& measure)
 {
-    const TopoDS_Shape& shape1 = getShape(owner1);
-    if (shape1.IsNull())
-        return MeasureShapeToolI18N::textIdTr("First picked entity must be a linear edge");
-
-    const TopoDS_Shape& shape2 = getShape(owner2);
-    if (shape2.IsNull())
-        return MeasureShapeToolI18N::textIdTr("Second picked entity must be a linear edge");
-
-    const BRepAdaptor_Curve curve1(TopoDS::Edge(shape1));
-    if (curve1.GetType() != GeomAbs_Line)
-        return MeasureShapeToolI18N::textIdTr("First picked entity must be a linear edge");
-
-    const BRepAdaptor_Curve curve2(TopoDS::Edge(shape2));
-    if (curve2.GetType() != GeomAbs_Line)
-        return MeasureShapeToolI18N::textIdTr("Second picked entity must be a linear edge");
-
-    return {}; // TODO Implement
+    if (owner && measure)
+        m_vecLinkGfxOwnerMeasure.push_back({ owner, measure.get() });
 }
 
-IMeasureTool::Result<QuantityArea> MeasureShapeTool::surfaceArea(Span<const GraphicsOwnerPtr> spanOwner) const
+void WidgetMeasure::eraseLink(const GraphicsOwner_MeasureDisplay* link)
 {
-    double area = 0;
-    // TODO Parallelize this for-loop. Verify BRepGProp::SurfaceProperties() is thread-safe
-    for (const GraphicsOwnerPtr& owner : spanOwner) {
-        const TopoDS_Shape& shape = getShape(owner);
-        if (shape.IsNull() || shape.ShapeType() != TopAbs_FACE)
-            return MeasureShapeToolI18N::textIdTr("All picked entities must be faces");
+    m_vecLinkGfxOwnerMeasure.erase(m_vecLinkGfxOwnerMeasure.begin() + (link - &m_vecLinkGfxOwnerMeasure.front()));
+}
 
-        GProp_GProps gprops;
-        BRepGProp::SurfaceProperties(TopoDS::Face(shape), gprops);
-        area += gprops.Mass();
-    }
-
-    return area * Quantity_SquaredMillimeter;
+const WidgetMeasure::GraphicsOwner_MeasureDisplay* WidgetMeasure::findLink(const GraphicsOwnerPtr& owner) const
+{
+    auto itFound = std::find_if(
+                m_vecLinkGfxOwnerMeasure.begin(),
+                m_vecLinkGfxOwnerMeasure.end(),
+                [=](const GraphicsOwner_MeasureDisplay& link) { return link.gfxOwner == owner; }
+    );
+    return itFound != m_vecLinkGfxOwnerMeasure.end() ? &(*itFound) : nullptr;
 }
 
 } // namespace Mayo

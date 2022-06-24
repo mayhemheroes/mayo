@@ -6,16 +6,10 @@
 
 #pragma once
 
-#include "../base/quantity.h"
-#include "../base/span.h"
-#include "../graphics/graphics_object_ptr.h"
-#include "../graphics/graphics_owner_ptr.h"
+#include "measure_display.h"
+#include "measure_tool.h"
 
 #include <QtWidgets/QWidget>
-
-#include <gp_Pnt.hxx>
-#include <gp_Circ.hxx>
-
 #include <memory>
 #include <string>
 #include <string_view>
@@ -24,67 +18,6 @@
 namespace Mayo {
 
 class GuiDocument;
-
-enum class MeasureType {
-    None, VertexPosition, CircleCenter, CircleDiameter, MinDistance, Length, Angle, SurfaceArea
-};
-
-struct MeasureConfig {
-    std::string_view strLengthUnit = "mm";
-    std::string_view strAngleUnit = "deg";
-};
-
-class IMeasureTool {
-public:
-    virtual Span<const GraphicsObjectSelectionMode> selectionModes(MeasureType type) const = 0;
-    virtual bool supports(const GraphicsObjectPtr& object) const = 0;
-    virtual bool supports(MeasureType type) const = 0;
-
-    template<typename T> struct Result {
-        bool isValid = false;
-        std::string errorMessage;
-        T value;
-        Result() = default;
-        Result(const T& v) : isValid(true), value(v) {}
-        Result(T&& v) : isValid(true), value(std::move(v)) {}
-        Result(std::string_view errMsg) : isValid(false), errorMessage(errMsg) {}
-    };
-
-    struct MinDistance {
-        gp_Pnt pnt1;
-        gp_Pnt pnt2;
-        QuantityLength distance;
-    };
-
-    virtual Result<gp_Pnt> vertexPosition(const GraphicsOwnerPtr& owner) const = 0;
-    virtual Result<gp_Circ> circle(const GraphicsOwnerPtr& owner) const = 0;
-    virtual Result<MinDistance> minDistance(const GraphicsOwnerPtr& owner1, const GraphicsOwnerPtr& owner2) const = 0;
-    virtual Result<QuantityLength> length(Span<const GraphicsOwnerPtr> spanOwner) const = 0;
-    virtual Result<QuantityAngle> angle(const GraphicsOwnerPtr& owner1, const GraphicsOwnerPtr& owner2) const = 0;
-    virtual Result<QuantityArea> surfaceArea(Span<const GraphicsOwnerPtr> spanOwner) const = 0;
-};
-
-class MeasureShapeTool : public IMeasureTool {
-public:
-    Span<const GraphicsObjectSelectionMode> selectionModes(MeasureType type) const override;
-    bool supports(const GraphicsObjectPtr& object) const override;
-    bool supports(MeasureType type) const override;
-
-    Result<gp_Pnt> vertexPosition(const GraphicsOwnerPtr& owner) const override;
-    Result<gp_Circ> circle(const GraphicsOwnerPtr& owner) const override;
-    Result<MinDistance> minDistance(const GraphicsOwnerPtr& owner1, const GraphicsOwnerPtr& owner2) const override;
-    Result<QuantityLength> length(Span<const GraphicsOwnerPtr> spanOwner) const override;
-    Result<QuantityAngle> angle(const GraphicsOwnerPtr& owner1, const GraphicsOwnerPtr& owner2) const override;
-    Result<QuantityArea> surfaceArea(Span<const GraphicsOwnerPtr> spanOwner) const override;
-};
-
-class IMeasure {
-public:
-    virtual void update(const MeasureConfig& config) = 0;
-    virtual std::string text() const = 0;
-    virtual int graphicsObjectsCount() const = 0;
-    virtual GraphicsObjectPtr graphicsObjectAt(int i) const = 0;
-};
 
 class WidgetMeasure : public QWidget {
     Q_OBJECT
@@ -111,9 +44,22 @@ private:
 
     void onGraphicsSelectionChanged();
 
+    using IMeasureDisplayPtr = std::unique_ptr<IMeasureDisplay>;
+
+    // Provides link between GraphicsOwner and IMeasure object
+    struct GraphicsOwner_MeasureDisplay {
+        GraphicsOwnerPtr gfxOwner;
+        const IMeasureDisplay* measure = nullptr;
+    };
+    void addLink(const GraphicsOwnerPtr& owner, const IMeasureDisplayPtr& measure);
+    void eraseLink(const GraphicsOwner_MeasureDisplay* link);
+    const GraphicsOwner_MeasureDisplay* findLink(const GraphicsOwnerPtr& owner) const;
+
     class Ui_WidgetMeasure* m_ui= nullptr;
     GuiDocument* m_guiDoc = nullptr;
     std::vector<GraphicsOwnerPtr> m_vecSelectedOwner;
+    std::vector<IMeasureDisplayPtr> m_vecMeasure;
+    std::vector<GraphicsOwner_MeasureDisplay> m_vecLinkGfxOwnerMeasure;
     IMeasureTool* m_tool = nullptr;
     QMetaObject::Connection m_connGraphicsSelectionChanged;
 };
