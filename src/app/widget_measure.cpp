@@ -209,11 +209,11 @@ void WidgetMeasure::onGraphicsSelectionChanged()
     for (const GraphicsOwnerPtr& owner : vecDeselected) {
         for (auto link = this->findLink(owner); link != nullptr; link = this->findLink(owner)) {
             auto itMeasure = std::find_if(
-                        m_vecMeasure.begin(), m_vecMeasure.end(),
-                        [=](const IMeasureDisplayPtr& measure) { return measure.get() == link->measure; }
+                        m_vecMeasureDisplay.begin(), m_vecMeasureDisplay.end(),
+                        [=](const IMeasureDisplayPtr& measureDsp) { return measureDsp.get() == link->measureDisplay; }
             );
-            if (itMeasure != m_vecMeasure.end())
-                m_vecMeasure.erase(itMeasure);
+            if (itMeasure != m_vecMeasureDisplay.end())
+                m_vecMeasureDisplay.erase(itMeasure);
 
             this->eraseLink(link);
         }
@@ -272,12 +272,19 @@ void WidgetMeasure::onGraphicsSelectionChanged()
             gfxScene->addObject(gfxObject);
         }
 
-        m_vecMeasure.push_back(std::move(measure));
+        m_vecMeasureDisplay.push_back(std::move(measure));
+    }
+
+    for (const GraphicsOwnerPtr& owner : vecDeselected) {
+        auto link = this->findLink(owner);
+        qDebug() << "Found link";
+        this->eraseMeasureDisplay(link ? link->measureDisplay : nullptr);
+        this->eraseLink(link);
     }
 
     m_ui->stackedWidget->setCurrentWidget(m_ui->pageResult);
     QString strResult;
-    for (const IMeasureDisplayPtr& measure : m_vecMeasure) {
+    for (const IMeasureDisplayPtr& measure : m_vecMeasureDisplay) {
         const std::string strMeasure = measure->text();
         if (!strMeasure.empty()) {
             if (!strResult.isEmpty())
@@ -291,6 +298,24 @@ void WidgetMeasure::onGraphicsSelectionChanged()
     emit this->sizeAdjustmentRequested();
 }
 
+void WidgetMeasure::eraseMeasureDisplay(const IMeasureDisplay* measure)
+{
+    if (!measure)
+        return;
+
+    auto it = std::find_if(
+                m_vecMeasureDisplay.begin(),
+                m_vecMeasureDisplay.end(),
+                [=](const IMeasureDisplayPtr& ptr) { return ptr.get() == measure; }
+    );
+    if (it != m_vecMeasureDisplay.end()) {
+        for (int i = 0; i < measure->graphicsObjectsCount(); ++i)
+            m_guiDoc->graphicsScene()->eraseObject(measure->graphicsObjectAt(i));
+
+        m_vecMeasureDisplay.erase(it);
+    }
+}
+
 void WidgetMeasure::addLink(const GraphicsOwnerPtr& owner, const IMeasureDisplayPtr& measure)
 {
     if (owner && measure)
@@ -299,6 +324,9 @@ void WidgetMeasure::addLink(const GraphicsOwnerPtr& owner, const IMeasureDisplay
 
 void WidgetMeasure::eraseLink(const GraphicsOwner_MeasureDisplay* link)
 {
+    if (!link)
+        return;
+
     m_vecLinkGfxOwnerMeasure.erase(m_vecLinkGfxOwnerMeasure.begin() + (link - &m_vecLinkGfxOwnerMeasure.front()));
 }
 

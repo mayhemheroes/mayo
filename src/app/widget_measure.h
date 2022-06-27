@@ -45,11 +45,12 @@ private:
     void onGraphicsSelectionChanged();
 
     using IMeasureDisplayPtr = std::unique_ptr<IMeasureDisplay>;
+    void eraseMeasureDisplay(const IMeasureDisplay* measure);
 
-    // Provides link between GraphicsOwner and IMeasure object
+    // Provides link between GraphicsOwner and IMeasureDisplay object
     struct GraphicsOwner_MeasureDisplay {
         GraphicsOwnerPtr gfxOwner;
-        const IMeasureDisplay* measure = nullptr;
+        const IMeasureDisplay* measureDisplay = nullptr;
     };
     void addLink(const GraphicsOwnerPtr& owner, const IMeasureDisplayPtr& measure);
     void eraseLink(const GraphicsOwner_MeasureDisplay* link);
@@ -58,7 +59,7 @@ private:
     class Ui_WidgetMeasure* m_ui= nullptr;
     GuiDocument* m_guiDoc = nullptr;
     std::vector<GraphicsOwnerPtr> m_vecSelectedOwner;
-    std::vector<IMeasureDisplayPtr> m_vecMeasure;
+    std::vector<IMeasureDisplayPtr> m_vecMeasureDisplay;
     std::vector<GraphicsOwner_MeasureDisplay> m_vecLinkGfxOwnerMeasure;
     IMeasureTool* m_tool = nullptr;
     QMetaObject::Connection m_connGraphicsSelectionChanged;
