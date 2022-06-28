@@ -17,7 +17,7 @@ public:
     bool supports(MeasureType type) const override;
 
     Result<gp_Pnt> vertexPosition(const GraphicsOwnerPtr& owner) const override;
-    Result<gp_Circ> circle(const GraphicsOwnerPtr& owner) const override;
+    Result<Circle> circle(const GraphicsOwnerPtr& owner) const override;
     Result<MinDistance> minDistance(const GraphicsOwnerPtr& owner1, const GraphicsOwnerPtr& owner2) const override;
     Result<QuantityLength> length(Span<const GraphicsOwnerPtr> spanOwner) const override;
     Result<QuantityAngle> angle(const GraphicsOwnerPtr& owner1, const GraphicsOwnerPtr& owner2) const override;

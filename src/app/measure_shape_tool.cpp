@@ -6,6 +6,7 @@
 
 #include "measure_shape_tool.h"
 
+#include "../base/geom_utils.h"
 #include "../base/text_id.h"
 #include "../graphics/graphics_shape_object_driver.h"
 
@@ -86,20 +87,23 @@ IMeasureTool::Result<gp_Pnt> MeasureShapeTool::vertexPosition(const GraphicsOwne
     return BRep_Tool::Pnt(TopoDS::Vertex(shape)).Transformed(owner->Location());
 }
 
-IMeasureTool::Result<gp_Circ> MeasureShapeTool::circle(const GraphicsOwnerPtr& owner) const
+IMeasureTool::Result<IMeasureTool::Circle> MeasureShapeTool::circle(const GraphicsOwnerPtr& owner) const
 {
     const TopoDS_Shape& shape = getShape(owner);
     if (shape.IsNull() || shape.ShapeType() != TopAbs_EDGE)
         return MeasureShapeToolI18N::textIdTr("Picked entity must be a circular edge");
 
     const BRepAdaptor_Curve curve(TopoDS::Edge(shape));
+    const gp_Pnt anchorPnt = GeomUtils::d0(curve, curve.FirstParameter()).Transformed(owner->Location());
     if (curve.GetType() == GeomAbs_Circle) {
-        return curve.Circle().Transformed(owner->Location());
+        return Circle { anchorPnt, curve.Circle().Transformed(owner->Location()) };
     }
     else if (curve.GetType() == GeomAbs_Ellipse) {
         const gp_Elips ellipse  = curve.Ellipse();
-        if (std::abs(ellipse.MinorRadius() - ellipse.MajorRadius()) < Precision::Confusion())
-            return gp_Circ(ellipse.Position(), ellipse.MinorRadius()).Transformed(owner->Location());
+        if (std::abs(ellipse.MinorRadius() - ellipse.MajorRadius()) < Precision::Confusion()) {
+            const gp_Circ circ(ellipse.Position(), ellipse.MinorRadius());
+            return Circle { anchorPnt, circ.Transformed(owner->Location()) };
+        }
     }
     else if (curve.GetType() == GeomAbs_BSplineCurve) {
         // TODO Support this case
@@ -127,7 +131,7 @@ IMeasureTool::Result<IMeasureTool::MinDistance> MeasureShapeTool::minDistance(
     IMeasureTool::MinDistance distResult;
     distResult.pnt1 = dist.PointOnShape1(1).Transformed(owner1->Location());
     distResult.pnt2 = dist.PointOnShape2(1).Transformed(owner2->Location());;
-    distResult.distance = dist.Value() * Quantity_Millimeter;
+    distResult.value = dist.Value() * Quantity_Millimeter;
     return distResult;
 }
 

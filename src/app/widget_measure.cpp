@@ -143,7 +143,6 @@ void WidgetMeasure::onMeasureTypeChanged(int id)
     m_ui->combo_AngleUnit->setVisible(measureIsAngleBased);
     emit this->sizeAdjustmentRequested();
 
-    m_vecSelectedOwner.clear();
     auto gfxScene = m_guiDoc->graphicsScene();
 
     // Find measure tool
@@ -203,21 +202,15 @@ void WidgetMeasure::onGraphicsSelectionChanged()
         m_vecSelectedOwner = std::move(vecSelected);
     }
 
-    if (!m_tool)
-        return;
-
     for (const GraphicsOwnerPtr& owner : vecDeselected) {
         for (auto link = this->findLink(owner); link != nullptr; link = this->findLink(owner)) {
-            auto itMeasure = std::find_if(
-                        m_vecMeasureDisplay.begin(), m_vecMeasureDisplay.end(),
-                        [=](const IMeasureDisplayPtr& measureDsp) { return measureDsp.get() == link->measureDisplay; }
-            );
-            if (itMeasure != m_vecMeasureDisplay.end())
-                m_vecMeasureDisplay.erase(itMeasure);
-
+            this->eraseMeasureDisplay(link->measureDisplay);
             this->eraseLink(link);
         }
     }
+
+    if (!m_tool)
+        return;
 
     std::vector<IMeasureDisplayPtr> vecNewMeasure;
     switch (this->currentMeasureType()) {
@@ -233,7 +226,7 @@ void WidgetMeasure::onGraphicsSelectionChanged()
     }
     case MeasureType::CircleCenter: {
         for (const GraphicsOwnerPtr& owner : vecNewSelected) {
-            const IMeasureTool::Result<gp_Circ> circle = m_tool->circle(owner);
+            const auto circle = m_tool->circle(owner);
             if (circle.isValid) {
                 vecNewMeasure.push_back(std::make_unique<MeasureDisplayCircleCenter>(circle.value));
                 this->addLink(owner, vecNewMeasure.back());
@@ -243,7 +236,7 @@ void WidgetMeasure::onGraphicsSelectionChanged()
     }
     case MeasureType::CircleDiameter: {
         for (const GraphicsOwnerPtr& owner : vecNewSelected) {
-            const IMeasureTool::Result<gp_Circ> circle = m_tool->circle(owner);
+            const auto circle = m_tool->circle(owner);
             if (circle.isValid) {
                 vecNewMeasure.push_back(std::make_unique<MeasureDisplayCircleDiameter>(circle.value));
                 this->addLink(owner, vecNewMeasure.back());
@@ -273,13 +266,6 @@ void WidgetMeasure::onGraphicsSelectionChanged()
         }
 
         m_vecMeasureDisplay.push_back(std::move(measure));
-    }
-
-    for (const GraphicsOwnerPtr& owner : vecDeselected) {
-        auto link = this->findLink(owner);
-        qDebug() << "Found link";
-        this->eraseMeasureDisplay(link ? link->measureDisplay : nullptr);
-        this->eraseLink(link);
     }
 
     m_ui->stackedWidget->setCurrentWidget(m_ui->pageResult);

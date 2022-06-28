@@ -40,11 +40,16 @@ public:
         gp_Pnt pnt1;
         gp_Pnt pnt2;
         gp_Pln preferredPlane;
-        QuantityLength distance;
+        QuantityLength value;
+    };
+
+    struct Circle {
+        gp_Pnt pntAnchor;
+        gp_Circ value;
     };
 
     virtual Result<gp_Pnt> vertexPosition(const GraphicsOwnerPtr& owner) const = 0;
-    virtual Result<gp_Circ> circle(const GraphicsOwnerPtr& owner) const = 0;
+    virtual Result<Circle> circle(const GraphicsOwnerPtr& owner) const = 0;
     virtual Result<MinDistance> minDistance(const GraphicsOwnerPtr& owner1, const GraphicsOwnerPtr& owner2) const = 0;
     virtual Result<QuantityLength> length(Span<const GraphicsOwnerPtr> spanOwner) const = 0;
     virtual Result<QuantityAngle> angle(const GraphicsOwnerPtr& owner1, const GraphicsOwnerPtr& owner2) const = 0;

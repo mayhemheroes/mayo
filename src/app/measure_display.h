@@ -10,10 +10,10 @@
 #include "../graphics/graphics_object_ptr.h"
 
 #include <AIS_Circle.hxx>
+#include <AIS_Line.hxx>
 #include <AIS_Point.hxx>
 #include <AIS_TextLabel.hxx>
 #include <gp_Circ.hxx>
-#include <PrsDim_DiameterDimension.hxx>
 #include <PrsDim_LengthDimension.hxx>
 
 #include <memory>
@@ -39,10 +39,12 @@ public:
 class BaseMeasureDisplay : public IMeasureDisplay {
 public:
     std::string text() const override { return m_text; }
-    static std::string text(const gp_Pnt& pnt, const MeasureConfig& config);
 
 protected:
     void setText(std::string_view str) { m_text = str; }
+
+    static std::string text(const gp_Pnt& pnt, const MeasureConfig& config);
+    static std::string text(double value);
 
 private:
     std::string m_text;
@@ -68,7 +70,7 @@ private:
 // --
 class MeasureDisplayCircleCenter : public BaseMeasureDisplay {
 public:
-    MeasureDisplayCircleCenter(const gp_Circ& circle);
+    MeasureDisplayCircleCenter(const IMeasureTool::Circle& circle);
     void update(const MeasureConfig& config) override;
     int graphicsObjectsCount() const override { return 3; }
     GraphicsObjectPtr graphicsObjectAt(int i) const override;
@@ -85,15 +87,19 @@ private:
 // --
 class MeasureDisplayCircleDiameter : public BaseMeasureDisplay {
 public:
-    MeasureDisplayCircleDiameter(const gp_Circ& circle);
+    MeasureDisplayCircleDiameter(const IMeasureTool::Circle& circle);
     void update(const MeasureConfig& config) override;
-    int graphicsObjectsCount() const override { return 1; }
+    int graphicsObjectsCount() const override { return 3; }
     GraphicsObjectPtr graphicsObjectAt(int i) const override;
 
 private:
+    static gp_Pnt diameterOpposedPnt(const gp_Pnt& pntOnCircle, const gp_Circ& circ);
+
     gp_Circ m_circle;
     std::string m_text;
-    Handle_PrsDim_DiameterDimension m_gfxDiameter;
+    Handle_AIS_Circle m_gfxCircle;
+    Handle_AIS_Line m_gfxDiameter;
+    Handle_AIS_TextLabel m_gfxDiameterText;
 };
 
 // --
