@@ -8,5 +8,7 @@ WORKDIR /repo
 RUN chmod +x ./build.sh
 RUN ./build.sh
 
-RUN mkdir -p /deps
-RUN ldd /repo/mayo-build/mayo | tr -s '[:blank:]' '\n' | grep '^/' | xargs -I % sh -c 'cp % /deps;'
+FROM ubuntu:22.04 as package
+RUN apt-get update
+RUN DEBIAN_FRONTEND=noninteractive apt-get install -y libocct-data-exchange-dev libocct-draw-dev qtbase5-dev
+COPY --from=builder /repo/mayo-build/mayo /

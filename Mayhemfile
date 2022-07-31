@@ -4,7 +4,6 @@ testsuite:
   - file://tests/inputs/cube.step
 
 cmds:
-  - cmd: /repo/mayo-build/mayo /test.step -e out.stl
-    filepath: /test.step
+  - cmd: /mayo @@ -e out.stl
     env:
       DISABLE_SMOKETEST: '1'
