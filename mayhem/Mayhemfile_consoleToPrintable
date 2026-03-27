@@ -1,0 +1,5 @@
+project: mayo
+target: consoletoprintable
+
+cmds:
+  - cmd: /fuzz_consoleToPrintable
